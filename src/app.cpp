@@ -1,5 +1,7 @@
 #include "imgui/imgui.h"
 
+#include <string>
+
 using namespace ImGui;
 
 bool RenderWindow()
@@ -36,4 +38,9 @@ bool RenderWindow()
 
 	ImGui::End();
 	return exit_app;
+}
+
+void OpenAdditionalFile(const std::string& file_path)
+{
+	printf(file_path.c_str());
 }

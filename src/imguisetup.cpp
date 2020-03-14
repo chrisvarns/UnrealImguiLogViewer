@@ -1,9 +1,6 @@
 // dear imgui: standalone example application for DirectX 10
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 
-#include "imgui/imgui.h"
-#include "imgui/imgui_impl_win32.h"
-#include "imgui/imgui_impl_dx10.h"
 #include <d3d10_1.h>
 #include <d3d10.h>
 #define DIRECTINPUT_VERSION 0x0800
@@ -11,6 +8,12 @@
 #include <tchar.h>
 
 #include "livepp/API/LPP_API.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx10.h"
+
+#include "app.h"
+#include "DropTarget.h"
 
 // Data
 static ID3D10Device*            g_pd3dDevice = NULL;
@@ -23,8 +26,6 @@ void CleanupDeviceD3D();
 void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
-
-bool RenderWindow();
 
 // Main code
 int main(int, char**)
@@ -42,6 +43,10 @@ int main(int, char**)
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
 	::RegisterClassEx(&wc);
 	HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Dear ImGui DirectX10 Example"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+
+	FDropTarget DropTarget;
+	OleInitialize(NULL);
+	RegisterDragDrop(hwnd, &DropTarget);
 
 	// Initialize Direct3D
 	if (!CreateDeviceD3D(hwnd))
@@ -128,6 +133,10 @@ int main(int, char**)
 	ImGui::DestroyContext();
 
 	CleanupDeviceD3D();
+
+	RevokeDragDrop(hwnd);
+	OleUninitialize();
+
 	::DestroyWindow(hwnd);
 	::UnregisterClass(wc.lpszClassName, wc.hInstance);
 
