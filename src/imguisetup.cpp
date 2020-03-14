@@ -10,6 +10,8 @@
 #include <dinput.h>
 #include <tchar.h>
 
+#include "LPP_API.h"
+
 // Data
 static ID3D10Device*            g_pd3dDevice = NULL;
 static IDXGISwapChain*          g_pSwapChain = NULL;
@@ -27,6 +29,15 @@ void RenderWindow();
 // Main code
 int main(int, char**)
 {
+	// load the Live++ DLL, check for version mismatch, and register process group
+	HMODULE livePP = lpp::lppLoadAndRegister(L"..\\..\\livepp", "Quickstart");
+
+	// enable Live++
+	lpp::lppEnableAllCallingModulesSync(livePP);
+
+	// enable Live++'s exception handler/error recovery
+	lpp::lppInstallExceptionHandler(livePP);
+
 	// Create application window
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
 	::RegisterClassEx(&wc);
