@@ -127,7 +127,8 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="src\main.cpp" />
+    <ClCompile Include="src\app.cpp" />
+    <ClCompile Include="src\imguisetup.cpp" />
     <ClCompile Include="src\thirdparty\imgui.cpp" />
     <ClCompile Include="src\thirdparty\imgui_demo.cpp" />
     <ClCompile Include="src\thirdparty\imgui_draw.cpp" />
