@@ -91,6 +91,9 @@
     <ClInclude Include="src\thirdparty\imstb_textedit.h" />
     <ClInclude Include="src\thirdparty\imstb_truetype.h" />
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\thirdparty\imgui.natvis" />
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
   </ImportGroup>

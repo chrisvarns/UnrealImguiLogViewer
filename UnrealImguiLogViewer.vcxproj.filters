@@ -72,4 +72,7 @@
       <Filter>Header Files\thirdparty</Filter>
     </ClInclude>
   </ItemGroup>
+  <ItemGroup>
+    <Natvis Include="src\thirdparty\imgui.natvis" />
+  </ItemGroup>
 </Project>
