@@ -6,7 +6,7 @@ bool RenderWindow()
 {
 	//	ImGui::ShowDemoWindow(&show_demo_window);
 
-	bool return_value = true;
+	bool exit_app = true;
 	// MainMenu
 	{
 		BeginMainMenuBar();
@@ -18,7 +18,7 @@ bool RenderWindow()
 			}
 			if (MenuItem("Exit"))
 			{
-				return_value = false;
+				exit_app = false;
 			}
 			EndMenu();
 		}
@@ -35,5 +35,5 @@ bool RenderWindow()
 	}
 
 	ImGui::End();
-	return return_value;
+	return exit_app;
 }
