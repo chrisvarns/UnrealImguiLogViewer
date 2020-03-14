@@ -24,7 +24,7 @@ void CreateRenderTarget();
 void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-void RenderWindow();
+bool RenderWindow();
 
 // Main code
 int main(int, char**)
@@ -88,7 +88,8 @@ int main(int, char**)
 	// Main loop
 	MSG msg;
 	ZeroMemory(&msg, sizeof(msg));
-	while (msg.message != WM_QUIT)
+	bool app_continue = true;
+	while (msg.message != WM_QUIT && app_continue)
 	{
 		// Poll and handle messages (inputs, window resize, etc.)
 		// You can read the io.WantCaptureMouse, io.WantCaptureKeyboard flags to tell if dear imgui wants to use your inputs.
@@ -107,7 +108,7 @@ int main(int, char**)
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		RenderWindow();
+		app_continue = RenderWindow();
 
 		// Rendering
 		ImGui::Render();
