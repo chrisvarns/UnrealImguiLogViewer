@@ -49,7 +49,7 @@
       <Optimization>Disabled</Optimization>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)\livepp\API;$(ProjectDir)/src/thirdparty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)thirdparty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
       <CreateHotpatchableImage>
       </CreateHotpatchableImage>
@@ -72,7 +72,7 @@
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>true</SDLCheck>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>$(ProjectDir)\livepp\API;$(ProjectDir)/src/thirdparty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>$(ProjectDir)thirdparty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <CreateHotpatchableImage>
       </CreateHotpatchableImage>
       <AdditionalOptions>/Gw %(AdditionalOptions)</AdditionalOptions>
@@ -88,25 +88,16 @@
   <ItemGroup>
     <ClCompile Include="src\app.cpp" />
     <ClCompile Include="src\imguisetup.cpp" />
-    <ClCompile Include="src\thirdparty\imgui.cpp" />
-    <ClCompile Include="src\thirdparty\imgui_demo.cpp" />
-    <ClCompile Include="src\thirdparty\imgui_draw.cpp" />
-    <ClCompile Include="src\thirdparty\imgui_impl_dx10.cpp" />
-    <ClCompile Include="src\thirdparty\imgui_impl_win32.cpp" />
-    <ClCompile Include="src\thirdparty\imgui_widgets.cpp" />
+    <ClCompile Include="thirdparty\imgui\imgui.cpp" />
+    <ClCompile Include="thirdparty\imgui\imgui_draw.cpp" />
+    <ClCompile Include="thirdparty\imgui\imgui_impl_dx10.cpp" />
+    <ClCompile Include="thirdparty\imgui\imgui_impl_win32.cpp" />
+    <ClCompile Include="thirdparty\imgui\imgui_widgets.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="src\thirdparty\imconfig.h" />
-    <ClInclude Include="src\thirdparty\imgui.h" />
-    <ClInclude Include="src\thirdparty\imgui_impl_dx10.h" />
-    <ClInclude Include="src\thirdparty\imgui_impl_win32.h" />
-    <ClInclude Include="src\thirdparty\imgui_internal.h" />
-    <ClInclude Include="src\thirdparty\imstb_rectpack.h" />
-    <ClInclude Include="src\thirdparty\imstb_textedit.h" />
-    <ClInclude Include="src\thirdparty\imstb_truetype.h" />
   </ItemGroup>
   <ItemGroup>
-    <Natvis Include="src\thirdparty\imgui.natvis" />
+    <Natvis Include="thirdparty\imgui\imgui.natvis" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

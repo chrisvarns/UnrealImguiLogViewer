@@ -1,16 +1,16 @@
 // dear imgui: standalone example application for DirectX 10
 // If you are new to dear imgui, see examples/README.txt and documentation at the top of imgui.cpp.
 
-#include "imgui.h"
-#include "imgui_impl_win32.h"
-#include "imgui_impl_dx10.h"
+#include "imgui/imgui.h"
+#include "imgui/imgui_impl_win32.h"
+#include "imgui/imgui_impl_dx10.h"
 #include <d3d10_1.h>
 #include <d3d10.h>
 #define DIRECTINPUT_VERSION 0x0800
 #include <dinput.h>
 #include <tchar.h>
 
-#include "LPP_API.h"
+#include "livepp/API/LPP_API.h"
 
 // Data
 static ID3D10Device*            g_pd3dDevice = NULL;
@@ -30,7 +30,7 @@ bool RenderWindow();
 int main(int, char**)
 {
 	// load the Live++ DLL, check for version mismatch, and register process group
-	HMODULE livePP = lpp::lppLoadAndRegister(L"..\\..\\livepp", "Quickstart");
+	HMODULE livePP = lpp::lppLoadAndRegister(L"..\\..\\thirdparty\\livepp", "Quickstart");
 
 	// enable Live++
 	lpp::lppEnableAllCallingModulesSync(livePP);
