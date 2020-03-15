@@ -5,4 +5,4 @@
 // Returns false if we should exit
 bool RenderWindow();
 
-void OpenAdditionalFile(const std::string& file_path);
+void OpenAdditionalFile(const std::string& FilePath);

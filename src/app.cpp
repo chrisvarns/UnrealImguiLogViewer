@@ -1,46 +1,54 @@
 #include "imgui/imgui.h"
+#include "FileUtils.h"
 
 #include <string>
+#include <vector>
 
-using namespace ImGui;
+struct LogFile
+{
+public:
+	std::string FilePath;
+	std::string FileContents;
+};
+
+static std::vector<LogFile> OpenFiles;
 
 bool RenderWindow()
 {
 	//	ImGui::ShowDemoWindow(&show_demo_window);
 
-	bool exit_app = true;
+	bool bExitApp = true;
 	// MainMenu
 	{
-		BeginMainMenuBar();
-		if (BeginMenu("File"))
+		ImGui::BeginMainMenuBar();
+		if (ImGui::BeginMenu("File"))
 		{
-			if (MenuItem("Open"))
+			if (ImGui::MenuItem("Open"))
 			{
 				// Open sesame
 			}
-			if (MenuItem("Exit"))
+			if (ImGui::MenuItem("Exit"))
 			{
-				exit_app = false;
+				bExitApp = false;
 			}
-			EndMenu();
+			ImGui::EndMenu();
 		}
-		EndMainMenuBar();
+		ImGui::EndMainMenuBar();
 	}
 
-	ImGuiWindowFlags window_flags = 0
-		| ImGuiWindowFlags_NoTitleBar
-		| ImGuiWindowFlags_MenuBar
-		//| ImGuiWindowFlags_NoScrollbar
-		;
-	if (ImGui::Begin("Unreal Log Viewer", nullptr, window_flags))
+	for (const LogFile& File : OpenFiles)
 	{
+		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
+		{
+			ImGui::Text(File.FileContents.c_str());
+		}
+		ImGui::End();
 	}
 
-	ImGui::End();
-	return exit_app;
+	return bExitApp;
 }
 
-void OpenAdditionalFile(const std::string& file_path)
+void OpenAdditionalFile(const std::string& FilePath)
 {
-	printf(file_path.c_str());
+	OpenFiles.push_back({ FilePath, FileUtils::ReadFileContents(FilePath) });
 }

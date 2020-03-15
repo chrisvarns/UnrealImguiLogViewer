@@ -88,6 +88,7 @@
   <ItemGroup>
     <ClCompile Include="src\app.cpp" />
     <ClCompile Include="src\DropTarget.cpp" />
+    <ClCompile Include="src\FileUtils.cpp" />
     <ClCompile Include="src\imguisetup.cpp" />
     <ClCompile Include="thirdparty\imgui\imgui.cpp" />
     <ClCompile Include="thirdparty\imgui\imgui_draw.cpp" />
@@ -98,6 +99,7 @@
   <ItemGroup>
     <ClInclude Include="src\app.h" />
     <ClInclude Include="src\DropTarget.h" />
+    <ClInclude Include="src\FileUtils.h" />
   </ItemGroup>
   <ItemGroup>
     <Natvis Include="thirdparty\imgui\imgui.natvis" />

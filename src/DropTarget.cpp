@@ -29,12 +29,12 @@ HRESULT FDropTarget::QueryInterface(REFIID riid, _COM_Outptr_ void __RPC_FAR *__
 
 ULONG FDropTarget::AddRef()
 {
-	return InterlockedIncrement(&ref_count);
+	return InterlockedIncrement(&RefCount);
 }
 
 ULONG FDropTarget::Release()
 {
-	LONG new_ref_count = InterlockedDecrement(&ref_count);
+	LONG new_ref_count = InterlockedDecrement(&RefCount);
 	if (new_ref_count == 0) delete this;
 	return new_ref_count;
 }

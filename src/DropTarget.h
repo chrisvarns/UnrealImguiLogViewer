@@ -41,5 +41,5 @@ public:
 	// IDropTarget End
 
 private:
-	LONG ref_count = 0;
+	LONG RefCount = 0;
 };
