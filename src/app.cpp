@@ -172,6 +172,7 @@ bool RenderWindow()
 					{
 						LineFilter.Token = Buf;
 					}
+					ImGui::Checkbox("Case Sensitive", &LineFilter.bCaseMatch);
 					if (ImGui::Button("Remove Filter"))
 					{
 						File.Filters.erase(File.Filters.begin() + LineFilterIdx);
