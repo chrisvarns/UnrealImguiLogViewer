@@ -1,14 +1,57 @@
 #include "imgui/imgui.h"
 #include "FileUtils.h"
 
+#include <algorithm>
+#include <cctype>
 #include <string>
 #include <vector>
+
+enum class EFilterType : int
+{
+	Include = 0,
+	Exclude,
+	MAX
+};
+
+const char* EFilterTypeStrings[(int)EFilterType::MAX + 1] = { "Include", "Exclude" };
+
+const char* ToString(EFilterType Type)
+{
+	int StringIndex = (int)Type;
+	if (StringIndex >= 0 || StringIndex < (int)EFilterType::MAX)
+	{
+		return EFilterTypeStrings[StringIndex];
+	}
+	return "Unknown";
+}
+
+struct FLineFilter
+{
+	EFilterType Type = EFilterType::Include;
+	std::string Token;
+	bool bCaseMatch = false;
+
+	bool DoFilter(const std::string& Line)
+	{
+		auto SearchPredCaseInvariant = [](char ch1, char ch2) { return toupper(ch1) == toupper(ch2); };
+		bool bContains = bCaseMatch ?
+			std::search(Line.begin(), Line.end(), Token.begin(), Token.end()) != Line.end() :
+			std::search(Line.begin(), Line.end(), Token.begin(), Token.end(), SearchPredCaseInvariant) != Line.end();
+		
+		bool bShouldInclude =
+			Type == EFilterType::Include && bContains ||
+			Type == EFilterType::Exclude && !bContains;
+
+		return bShouldInclude;
+	}
+};
 
 struct FLogFile
 {
 public:
 	std::string FilePath;
-	std::string FileContents;
+	std::vector<std::string> Lines;
+	std::vector<FLineFilter> Filters;
 };
 
 static std::vector<FLogFile> OpenFiles;
@@ -19,7 +62,14 @@ bool RenderWindow()
 	{
 		FLogFile LogFile;
 		LogFile.FilePath = "test";
-		LogFile.FileContents = "test";
+		std::string TestLine;
+		for (int i = 0; i < 100; ++i)
+		{
+			TestLine += "Lorem ipsom etc ";
+		}
+		LogFile.Lines.push_back(TestLine);
+		for (char a = '0'; a <= 'z'; ++a)
+			LogFile.Lines.push_back(std::string(&a, 1));
 		OpenFiles.push_back(std::move(LogFile));
 	}
 
@@ -66,16 +116,69 @@ bool RenderWindow()
 		ImGui::End();
 	}
 
-	/*bool show_demo_window = true;
+	bool show_demo_window = true;
 	ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
-	ImGui::ShowDemoWindow(&show_demo_window);*/
+	ImGui::ShowDemoWindow(&show_demo_window);
 
-	for (const FLogFile& File : OpenFiles)
+	for (FLogFile& File : OpenFiles)
 	{
+		static ImGuiTextFilter LineFilter;
+
 		ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
-			ImGui::Text(File.FileContents.c_str());
+			ImGui::Columns(2);
+			// Text region
+			{
+				ImGui::PushTextWrapPos();
+				for (std::string& Line : File.Lines)
+				{
+					bool bInclude = true;
+					for (FLineFilter& Filter : File.Filters)
+					{
+						if (!Filter.DoFilter(Line))
+						{
+							bInclude = false;
+							break;
+						}
+					}
+					if (bInclude)
+					{
+						ImGui::Text(Line.c_str());
+					}
+				}
+				ImGui::PopTextWrapPos();
+			}
+
+			ImGui::NextColumn();
+
+			// Config region
+			{
+				if (ImGui::Button("Add Filter"))
+				{
+					File.Filters.emplace_back(FLineFilter());
+				}
+
+
+				for (int LineFilterIdx = 0; LineFilterIdx < File.Filters.size(); ++LineFilterIdx)
+				{
+					FLineFilter& LineFilter = File.Filters[LineFilterIdx];
+					ImGui::Spacing();
+					ImGui::PushID(LineFilterIdx);
+					ImGui::Combo("Filter Type", (int*)&LineFilter.Type, EFilterTypeStrings, int(EFilterType::MAX));
+					static char Buf[1024];
+					strncpy_s(Buf, LineFilter.Token.c_str(), LineFilter.Token.size());
+					if (ImGui::InputText("Filter Token", Buf, 1024))
+					{
+						LineFilter.Token = Buf;
+					}
+					if (ImGui::Button("Remove Filter"))
+					{
+						File.Filters.erase(File.Filters.begin() + LineFilterIdx);
+					}
+					ImGui::PopID();
+				}
+			}
 		}
 		ImGui::End();
 	}
