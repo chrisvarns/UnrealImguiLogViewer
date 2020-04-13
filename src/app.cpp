@@ -204,6 +204,7 @@ private:
 };
 
 static std::vector<FLogFile> OpenFiles;
+static ImVec4 TextColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 
 bool ImGuiInputText(const char* Label, std::string& InOutText)
 {
@@ -219,7 +220,6 @@ bool ImGuiInputText(const char* Label, std::string& InOutText)
 
 void RenderTextWindow(const FDisplayText& DisplayText)
 {
-	ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
 	// Get width of the line number section
 	int NumLineNumChars = 0;
 	{
@@ -227,6 +227,8 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 		while (NumLines /= 10) ++NumLineNumChars;
 	}
 
+	ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
+	ImGui::PushStyleColor(ImGuiCol_Text, TextColor);
 	ImGuiListClipper Clipper((int)DisplayText.size());
 	while (Clipper.Step())
 	{
@@ -235,8 +237,16 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 			ImGui::Text("%d", DisplayText[i].LineNumber);
 			ImGui::SameLine(10*NumLineNumChars);
 			ImGui::TextUnformatted(DisplayText[i].Text.c_str());
+			ImGui::PushID(i);
+			if (ImGui::BeginPopupContextItem("DisplayText context menu"))
+			{
+				if (ImGui::Selectable("Copy")) ImGui::SetClipboardText(DisplayText[i].Text.c_str());
+				ImGui::EndPopup();
+			}
+			ImGui::PopID();
 		}
 	}
+	ImGui::PopStyleColor();
 	ImGui::PopTextWrapPos();
 }
 
@@ -294,6 +304,11 @@ bool RenderWindow()
 				}
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("Options"))
+			{
+				ImGui::ColorPicker3("Text Color", &TextColor.x, ImGuiColorEditFlags_None);
+				ImGui::EndMenu();
+			}
 			ImGui::EndMenuBar();
 		}
 
@@ -307,6 +322,21 @@ bool RenderWindow()
 	for (FLogFile& File : OpenFiles)
 	{
 		ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
+
+		// Scroll wheel text size
+		ImGuiIO& io = ImGui::GetIO();
+		if (io.KeyCtrl)
+		{
+			if (io.MouseWheel > 0.0f)
+			{
+				io.FontGlobalScale += 0.1f;
+			}
+			else if (io.MouseWheel < 0.0f)
+			{
+				io.FontGlobalScale -= 0.1f;
+			}
+		}
+
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
 			if(ImGui::BeginChild("TextRegion", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.85f, 0), false, ImGuiWindowFlags_HorizontalScrollbar))
