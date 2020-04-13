@@ -219,10 +219,9 @@ bool ImGuiInputText(const char* Label, std::string& InOutText)
 
 void RenderTextWindow(const FDisplayText& DisplayText)
 {
-	ImGui::PushTextWrapPos();
-
+	ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
 	// Get width of the line number section
-	int NumLineNumChars = 1;
+	int NumLineNumChars = 0;
 	{
 		size_t NumLines = DisplayText[DisplayText.size()-1].LineNumber;
 		while (NumLines /= 10) ++NumLineNumChars;
