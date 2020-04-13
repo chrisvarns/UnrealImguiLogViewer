@@ -267,6 +267,20 @@ bool RenderWindow()
 		OpenFiles.push_back(std::move(LogFile));
 	}
 
+	// Scroll wheel text size
+	ImGuiIO& io = ImGui::GetIO();
+	if (io.KeyCtrl)
+	{
+		if (io.MouseWheel > 0.0f)
+		{
+			io.FontGlobalScale += 0.1f;
+		}
+		else if (io.MouseWheel < 0.0f)
+		{
+			io.FontGlobalScale -= 0.1f;
+		}
+	}
+
 	bool bExitApp = true;
 	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 
@@ -322,20 +336,6 @@ bool RenderWindow()
 	for (FLogFile& File : OpenFiles)
 	{
 		ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
-
-		// Scroll wheel text size
-		ImGuiIO& io = ImGui::GetIO();
-		if (io.KeyCtrl)
-		{
-			if (io.MouseWheel > 0.0f)
-			{
-				io.FontGlobalScale += 0.1f;
-			}
-			else if (io.MouseWheel < 0.0f)
-			{
-				io.FontGlobalScale -= 0.1f;
-			}
-		}
 
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
