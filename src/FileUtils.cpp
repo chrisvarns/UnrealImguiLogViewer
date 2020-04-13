@@ -3,12 +3,14 @@
 #include <windows.h>
 #include <fileapi.h>
 
+#include <sstream>
+
 namespace FileUtils
 {
 
-std::string ReadFileContents(const std::string& FilePath)
+std::vector<std::string> ReadFileContents(const std::string& FilePath)
 {
-	std::stringstream FileStream;
+	std::vector<std::string> FileContents;
 	HANDLE FileHandle = CreateFile(
 		FilePath.c_str(),
 		GENERIC_READ,
@@ -19,10 +21,11 @@ std::string ReadFileContents(const std::string& FilePath)
 		NULL
 	);
 	if (FileHandle != INVALID_HANDLE_VALUE)
-	{		
+	{
 		char ReadBuffer[1024];
 		DWORD BytesRead;
 		bool bReadSuccess = true;
+		std::stringstream FileStream;
 
 		while (bReadSuccess)
 		{
@@ -40,8 +43,14 @@ std::string ReadFileContents(const std::string& FilePath)
 			}
 		}
 		CloseHandle(FileHandle);
+
+		std::string Line;
+		while (std::getline(FileStream, Line))
+		{
+			FileContents.emplace_back(std::move(Line));
+		}
 	}
-	return FileStream.str();
+	return FileContents;
 }
 
 }

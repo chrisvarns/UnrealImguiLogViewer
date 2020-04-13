@@ -156,38 +156,51 @@ bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Lin
 	return !bExcluded && (bIncluded || !bIncludeFilterEncountered);
 }
 
+struct FDisplayLine
+{
+	int LineNumber;
+	std::string Text;
+};
+
+typedef std::vector<FDisplayLine> FDisplayText;
+
 struct FLogFile
 {
 public:
 	std::string FilePath;
-	std::string FileContent;
+	std::vector<std::string> FileContents;
 	std::vector<FLineFilter> Filters;
-	bool bInitialColumnWidthSet = false;
-	bool bDisplayStrDirty = true;
+	bool bDisplayTextDirty = true;
+	int NumFileContentLines = -1;
 
-	const std::string& GetDisplayStr()
+	const FDisplayText& GetDisplayText()
 	{
-		if (bDisplayStrDirty)
+		if (bDisplayTextDirty)
 		{
-			std::stringstream DisplayStream;
-			std::stringstream Input(FileContent);
+			DisplayText.clear();
+			DisplayText.reserve(NumFileContentLines > 0 ? NumFileContentLines : 16384);
+
 			std::string Line;
-			while (std::getline(Input, Line))
+			int LineNumber = -1;
+			for (const std::string& Line : FileContents)
 			{
+				++LineNumber;
 				if (DoFilterLine(Filters, Line))
 				{
-					DisplayStream.write(Line.c_str(), Line.size());
-					DisplayStream.put('\n');
+					FDisplayLine DisplayLine;
+					DisplayLine.LineNumber = LineNumber;
+					DisplayLine.Text = std::string(Line.c_str(), Line.size());
+					DisplayText.emplace_back(std::move(DisplayLine));
 				}
 			}
-			DisplayStr = DisplayStream.str();
-			bDisplayStrDirty = false;
+			NumFileContentLines = LineNumber + 1;
+			bDisplayTextDirty = false;
 		}
-		return DisplayStr;
+		return DisplayText;
 	}
 
 private:
-	std::string DisplayStr;
+	FDisplayText DisplayText;
 };
 
 static std::vector<FLogFile> OpenFiles;
@@ -204,6 +217,30 @@ bool ImGuiInputText(const char* Label, std::string& InOutText)
 	return false;
 }
 
+void RenderTextWindow(const FDisplayText& DisplayText)
+{
+	ImGui::PushTextWrapPos();
+
+	// Get width of the line number section
+	int NumLineNumChars = 1;
+	{
+		size_t NumLines = DisplayText[DisplayText.size()-1].LineNumber;
+		while (NumLines /= 10) ++NumLineNumChars;
+	}
+
+	ImGuiListClipper Clipper((int)DisplayText.size());
+	while (Clipper.Step())
+	{
+		for (int i = Clipper.DisplayStart; i < Clipper.DisplayEnd; ++i)
+		{
+			ImGui::Text("%d", DisplayText[i].LineNumber);
+			ImGui::SameLine(10*NumLineNumChars);
+			ImGui::TextUnformatted(DisplayText[i].Text.c_str());
+		}
+	}
+	ImGui::PopTextWrapPos();
+}
+
 bool RenderWindow()
 {
 	if (OpenFiles.size() == 0)
@@ -215,9 +252,9 @@ bool RenderWindow()
 		{
 			TestLine += "Lorem ipsom etc ";
 		}
-		LogFile.FileContent += TestLine;
+		LogFile.FileContents.emplace_back(std::move(TestLine));
 		for (char a = '0'; a <= 'z'; ++a)
-			LogFile.FileContent += a;
+			LogFile.FileContents.emplace_back(&a);
 		OpenFiles.push_back(std::move(LogFile));
 	}
 
@@ -270,35 +307,18 @@ bool RenderWindow()
 
 	for (FLogFile& File : OpenFiles)
 	{
-		static ImGuiTextFilter LineFilter;
-
 		ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
-			ImGui::Columns(2);
-			if (!File.bInitialColumnWidthSet)
+			if(ImGui::BeginChild("TextRegion", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.85f, 0), false, ImGuiWindowFlags_HorizontalScrollbar))
 			{
-				ImGui::SetColumnWidth(0, ImGui::GetWindowContentRegionWidth() * 0.85f);
-				File.bInitialColumnWidthSet = true;
+				RenderTextWindow(File.GetDisplayText());
 			}
-			// Text region
-			{
-				ImGui::PushTextWrapPos();
-				
-				//for (int i = 0; i < File.Lines.size(); ++i)
-				//{
-				//	if (File.LineIncluded[i])
-				//	{
-				//		ImGui::Text(File.Lines[i].c_str());
-				//	}
-				//}
-				ImGui::TextUnformatted(File.GetDisplayStr().c_str());
-				ImGui::PopTextWrapPos();
-			}
+			ImGui::EndChild();
 
-			ImGui::NextColumn();
+			ImGui::SameLine();
 
-			// Config region
+			if(ImGui::BeginChild("ConfigRegion"))
 			{
 				if (ImGui::Button("Add Filter"))
 				{
@@ -338,11 +358,12 @@ bool RenderWindow()
 						--LineFilterIdx;
 					}
 
-					File.bDisplayStrDirty = bEnableChanged || (LineFilter.bEnable && bFilterDirty);
+					File.bDisplayTextDirty = bEnableChanged || (LineFilter.bEnable && bFilterDirty);
 
 					ImGui::PopID();
 				}
 			}
+			ImGui::EndChild();
 		}
 		ImGui::End();
 	}
@@ -354,6 +375,6 @@ void OpenAdditionalFile(const std::string& FilePath)
 {
 	FLogFile LogFile;
 	LogFile.FilePath = FilePath;
-	LogFile.FileContent = FileUtils::ReadFileContents(FilePath);
+	LogFile.FileContents = FileUtils::ReadFileContents(FilePath);
 	OpenFiles.push_back(std::move(LogFile));
 }
