@@ -29,6 +29,7 @@ struct FLineFilter
 {
 	EFilterType Type = EFilterType::Include;
 	std::string Token;
+	bool bEnable = false;
 	bool bCaseMatch = false;
 };
 
@@ -37,7 +38,10 @@ struct FLogFile
 public:
 	std::string FilePath;
 	std::vector<std::string> Lines;
+	std::vector<bool> LineIncluded;
 	std::vector<FLineFilter> Filters;
+
+	bool bInitialColumnWidthSet = false;
 };
 
 static std::vector<FLogFile> OpenFiles;
@@ -53,7 +57,10 @@ bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Lin
 
 	for (const FLineFilter& Filter : Filters)
 	{
-		bool bContains = Filter.bCaseMatch ?
+		if (!Filter.bEnable) continue;
+
+		bool bContains = Filter.Token.empty() ? false :
+			Filter.bCaseMatch ?
 			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end()) != Line.end() :
 			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end(), SearchPredCaseInvariant) != Line.end();
 
@@ -70,6 +77,16 @@ bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Lin
 	}
 
 	return !bExcluded && (bIncluded || !bIncludeFilterEncountered);
+}
+
+void RedoFilter(FLogFile& LogFile)
+{
+	LogFile.LineIncluded.clear();
+	LogFile.LineIncluded.reserve(LogFile.Lines.size());
+	for (const std::string& Line : LogFile.Lines)
+	{
+		LogFile.LineIncluded.emplace_back(DoFilterLine(LogFile.Filters, Line));
+	}
 }
 
 bool RenderWindow()
@@ -144,14 +161,24 @@ bool RenderWindow()
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
 			ImGui::Columns(2);
+			if (!File.bInitialColumnWidthSet)
+			{
+				ImGui::SetColumnWidth(0, ImGui::GetWindowContentRegionWidth() * 0.85f);
+				File.bInitialColumnWidthSet = true;
+			}
 			// Text region
 			{
 				ImGui::PushTextWrapPos();
-				for (std::string& Line : File.Lines)
+				
+				if (File.LineIncluded.size() != File.Lines.size())
 				{
-					if (DoFilterLine(File.Filters, Line))
+					RedoFilter(File);
+				}
+				for (int i = 0; i < File.Lines.size(); ++i)
+				{
+					if (File.LineIncluded[i])
 					{
-						ImGui::Text(Line.c_str());
+						ImGui::Text(File.Lines[i].c_str());
 					}
 				}
 				ImGui::PopTextWrapPos();
@@ -166,24 +193,40 @@ bool RenderWindow()
 					File.Filters.emplace_back(FLineFilter());
 				}
 
+				bool bFiltersChanged = false;
 				for (int LineFilterIdx = 0; LineFilterIdx < File.Filters.size(); ++LineFilterIdx)
 				{
 					FLineFilter& LineFilter = File.Filters[LineFilterIdx];
-					ImGui::Spacing();
+					ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 					ImGui::PushID(LineFilterIdx);
-					ImGui::Combo("Filter Type", (int*)&LineFilter.Type, EFilterTypeStrings, int(EFilterType::MAX));
+
+					if (ImGui::Combo("Type", (int*)&LineFilter.Type, EFilterTypeStrings, int(EFilterType::MAX))) bFiltersChanged = true;
 					static char Buf[1024];
 					strncpy_s(Buf, LineFilter.Token.c_str(), LineFilter.Token.size());
-					if (ImGui::InputText("Filter Token", Buf, 1024))
+					if (ImGui::InputText("Token", Buf, 1024))
 					{
 						LineFilter.Token = Buf;
+						bFiltersChanged = true;
 					}
-					ImGui::Checkbox("Case Sensitive", &LineFilter.bCaseMatch);
+
+					if (ImGui::Checkbox("Enable", &LineFilter.bEnable)) bFiltersChanged = true;
+					ImGui::SameLine();
+					if (ImGui::Checkbox("Case Sensitive", &LineFilter.bCaseMatch)) bFiltersChanged = true;
+					//ImGui::SameLine();
+					//if(ImGui::Checkbox("Regex", &LineFilter.bRegex)) bFiltersChanged = true;
+
 					if (ImGui::Button("Remove Filter"))
 					{
 						File.Filters.erase(File.Filters.begin() + LineFilterIdx);
+						bFiltersChanged = true;
 					}
+
 					ImGui::PopID();
+				}
+
+				if (bFiltersChanged)
+				{
+					RedoFilter(File);
 				}
 			}
 		}
