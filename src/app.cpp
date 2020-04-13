@@ -235,7 +235,7 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 		for (int i = Clipper.DisplayStart; i < Clipper.DisplayEnd; ++i)
 		{
 			ImGui::Text("%d", DisplayText[i].LineNumber);
-			ImGui::SameLine(10*NumLineNumChars);
+			ImGui::SameLine(NumLineNumChars * ImGui::GetFontSize());
 			ImGui::TextUnformatted(DisplayText[i].Text.c_str());
 			ImGui::PushID(i);
 			if (ImGui::BeginPopupContextItem("DisplayText context menu"))
@@ -265,20 +265,6 @@ bool RenderWindow()
 		for (char a = '0'; a <= 'z'; ++a)
 			LogFile.FileContents.emplace_back(&a);
 		OpenFiles.push_back(std::move(LogFile));
-	}
-
-	// Scroll wheel text size
-	ImGuiIO& io = ImGui::GetIO();
-	if (io.KeyCtrl)
-	{
-		if (io.MouseWheel > 0.0f)
-		{
-			io.FontGlobalScale += 0.1f;
-		}
-		else if (io.MouseWheel < 0.0f)
-		{
-			io.FontGlobalScale -= 0.1f;
-		}
 	}
 
 	bool bExitApp = true;
@@ -329,7 +315,7 @@ bool RenderWindow()
 		ImGui::End();
 	}
 
-	bool show_demo_window = true;
+	static bool show_demo_window = true;
 	ImGui::SetNextWindowDockID(dockspace_id, ImGuiCond_Once);
 	ImGui::ShowDemoWindow(&show_demo_window);
 
