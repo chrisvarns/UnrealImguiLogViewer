@@ -181,10 +181,9 @@ public:
 			DisplayText.reserve(NumFileContentLines > 0 ? NumFileContentLines : 16384);
 
 			std::string Line;
-			int LineNumber = -1;
+			int LineNumber = 1;
 			for (const std::string& Line : FileContents)
 			{
-				++LineNumber;
 				if (DoFilterLine(Filters, Line))
 				{
 					FDisplayLine DisplayLine;
@@ -192,6 +191,7 @@ public:
 					DisplayLine.Text = std::string(Line.c_str(), Line.size());
 					DisplayText.emplace_back(std::move(DisplayLine));
 				}
+				++LineNumber;
 			}
 			NumFileContentLines = LineNumber + 1;
 			bDisplayTextDirty = false;
@@ -205,12 +205,13 @@ private:
 
 static std::vector<FLogFile> OpenFiles;
 static ImVec4 TextColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+static bool bWordWrap = true;
 
 bool ImGuiInputText(const char* Label, std::string& InOutText)
 {
 	static char Buf[1024];
 	strncpy_s(Buf, InOutText.c_str(), InOutText.size());
-	if (ImGui::InputText("Token", Buf, 1024))
+	if (ImGui::InputText(Label, Buf, 1024))
 	{
 		InOutText = Buf;
 		return true;
@@ -227,7 +228,10 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 		while (NumLines /= 10) ++NumLineNumChars;
 	}
 
-	ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
+	if (bWordWrap)
+	{
+		ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
+	}
 	ImGui::PushStyleColor(ImGuiCol_Text, TextColor);
 	ImGuiListClipper Clipper((int)DisplayText.size());
 	while (Clipper.Step())
@@ -247,7 +251,10 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 		}
 	}
 	ImGui::PopStyleColor();
-	ImGui::PopTextWrapPos();
+	if (bWordWrap)
+	{
+		ImGui::PopTextWrapPos();
+	}
 }
 
 bool RenderWindow()
@@ -307,6 +314,7 @@ bool RenderWindow()
 			if (ImGui::BeginMenu("Options"))
 			{
 				ImGui::ColorPicker3("Text Color", &TextColor.x, ImGuiColorEditFlags_None);
+				ImGui::Checkbox("Word Wrap", &bWordWrap);
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -373,7 +381,7 @@ bool RenderWindow()
 						--LineFilterIdx;
 					}
 
-					File.bDisplayTextDirty = bEnableChanged || (LineFilter.bEnable && bFilterDirty);
+					File.bDisplayTextDirty |= bEnableChanged || (LineFilter.bEnable && bFilterDirty);
 
 					ImGui::PopID();
 				}
