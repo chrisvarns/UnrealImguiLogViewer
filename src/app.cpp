@@ -3,17 +3,24 @@
 
 #include <algorithm>
 #include <cctype>
+#include <sstream>
 #include <string>
 #include <vector>
 
 enum class EFilterType : int
 {
-	Include = 0,
-	Exclude,
+	TextInclude = 0,
+	TextExclude,
+	LogCategory,
 	MAX
 };
 
-const char* EFilterTypeStrings[(int)EFilterType::MAX + 1] = { "Include", "Exclude" };
+const char* EFilterTypeStrings[(int)EFilterType::MAX + 1] =
+{
+	"Text Include",
+	"Text Exclude",
+	"Log Category"
+};
 
 const char* ToString(EFilterType Type)
 {
@@ -25,26 +32,63 @@ const char* ToString(EFilterType Type)
 	return "Unknown";
 }
 
+enum class ELogVerbosity : int
+{
+	Off = 0,
+	Error,
+	Warning,
+	Log,
+	Verbose,
+	VeryVerbose,
+	MAX
+};
+
+const char* ELogVerbosityStrings[(int)ELogVerbosity::MAX + 1] =
+{
+	"Off",
+	"Error",
+	"Warning",
+	"Log",
+	"Verbose",
+	"VeryVerbose"
+};
+
+const char* ToString(ELogVerbosity Type)
+{
+	int StringIndex = (int)Type;
+	if (StringIndex >= 0 || StringIndex < (int)ELogVerbosity::MAX)
+	{
+		return ELogVerbosityStrings[StringIndex];
+	}
+	return "Unknown";
+}
+
 struct FLineFilter
 {
-	EFilterType Type = EFilterType::Include;
-	std::string Token;
+	EFilterType Type = EFilterType::TextInclude;
+	struct
+	{
+		std::string Token;
+		bool bCaseMatch = false;
+	} TextData;
+	struct
+	{
+		std::string Category;
+		ELogVerbosity Verbosity = ELogVerbosity::Log;
+	} LogCategoryData;
 	bool bEnable = false;
-	bool bCaseMatch = false;
 };
 
-struct FLogFile
+bool Contains(const std::string& Haystack, const std::string& Needle)
 {
-public:
-	std::string FilePath;
-	std::vector<std::string> Lines;
-	std::vector<bool> LineIncluded;
-	std::vector<FLineFilter> Filters;
+	return std::search(Haystack.begin(), Haystack.end(), Needle.begin(), Needle.end()) != Haystack.end();
+}
 
-	bool bInitialColumnWidthSet = false;
-};
-
-static std::vector<FLogFile> OpenFiles;
+template<class TPred>
+bool ContainsByPred(const std::string& Haystack, const std::string& Needle, TPred Pred)
+{
+	return std::search(Haystack.begin(), Haystack.end(), Needle.begin(), Needle.end(), Pred) != Haystack.end();
+}
 
 /** Returns true if we should include the line */
 bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Line)
@@ -57,36 +101,107 @@ bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Lin
 
 	for (const FLineFilter& Filter : Filters)
 	{
+		if (bExcluded) break;
 		if (!Filter.bEnable) continue;
 
-		bool bContains = Filter.Token.empty() ? false :
-			Filter.bCaseMatch ?
-			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end()) != Line.end() :
-			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end(), SearchPredCaseInvariant) != Line.end();
+		if (Filter.Type == EFilterType::TextInclude || Filter.Type == EFilterType::TextExclude)
+		{
+			const auto& FilterData = Filter.TextData;
+			bool bContains = FilterData.Token.empty() ? false :
+				FilterData.bCaseMatch ? Contains(Line, FilterData.Token) : ContainsByPred(Line, FilterData.Token, SearchPredCaseInvariant);
 
-		if (Filter.Type == EFilterType::Include)
-		{
-			bIncludeFilterEncountered = true;
-			bIncluded |= bContains;
+			if (Filter.Type == EFilterType::TextInclude)
+			{
+				bIncludeFilterEncountered = true;
+				bIncluded |= bContains;
+			}
+			else if (Filter.Type == EFilterType::TextExclude)
+			{
+				bExcluded |= bContains;
+			}
 		}
-		else if (Filter.Type == EFilterType::Exclude)
+		else if (Filter.Type == EFilterType::LogCategory)
 		{
-			bExcluded |= bContains;
-			break; // No need to continue if we're excluded
+			const auto& FilterData = Filter.LogCategoryData;
+
+			if (FilterData.Verbosity != ELogVerbosity::VeryVerbose
+				&& !FilterData.Category.empty()
+				&& Contains(Line, FilterData.Category + ":"))
+			{
+				switch (FilterData.Verbosity)
+				{
+				case ELogVerbosity::Off:
+					bExcluded = true;
+					break;
+				case ELogVerbosity::Error:
+					bExcluded = !Contains(Line, FilterData.Category + ": Error:");
+					break;
+				case ELogVerbosity::Warning:
+					bExcluded = !(Contains(Line, FilterData.Category + ": Error:")
+						|| Contains(Line, FilterData.Category + ": Warning:"));
+					break;
+				case ELogVerbosity::Log:
+					bExcluded = Contains(Line, FilterData.Category + ": VeryVerbose:")
+						|| Contains(Line, FilterData.Category + ": Verbose:");
+					break;
+				case ELogVerbosity::Verbose:
+					bExcluded = Contains(Line, FilterData.Category + ": VeryVerbose:");
+					break;
+				}
+			}
 		}
+		else assert(false);
 	}
 
 	return !bExcluded && (bIncluded || !bIncludeFilterEncountered);
 }
 
-void RedoFilter(FLogFile& LogFile)
+struct FLogFile
 {
-	LogFile.LineIncluded.clear();
-	LogFile.LineIncluded.reserve(LogFile.Lines.size());
-	for (const std::string& Line : LogFile.Lines)
+public:
+	std::string FilePath;
+	std::string FileContent;
+	std::vector<FLineFilter> Filters;
+	bool bInitialColumnWidthSet = false;
+	bool bDisplayStrDirty = true;
+
+	const std::string& GetDisplayStr()
 	{
-		LogFile.LineIncluded.emplace_back(DoFilterLine(LogFile.Filters, Line));
+		if (bDisplayStrDirty)
+		{
+			std::stringstream DisplayStream;
+			std::stringstream Input(FileContent);
+			std::string Line;
+			while (std::getline(Input, Line))
+			{
+				if (DoFilterLine(Filters, Line))
+				{
+					DisplayStream.write(Line.c_str(), Line.size());
+					DisplayStream.put('\n');
+				}
+			}
+			DisplayStr = DisplayStream.str();
+			bDisplayStrDirty = false;
+		}
+		return DisplayStr;
 	}
+
+private:
+	std::string DisplayStr;
+};
+
+static std::vector<FLogFile> OpenFiles;
+
+bool ImGuiInputText(const char* Label, std::string& InOutText)
+{
+	static char Buf[1024];
+	strncpy_s(Buf, InOutText.c_str(), InOutText.size());
+	if (ImGui::InputText("Token", Buf, 1024))
+	{
+		InOutText = Buf;
+		return true;
+	}
+	return false;
 }
 
 bool RenderWindow()
@@ -100,9 +215,9 @@ bool RenderWindow()
 		{
 			TestLine += "Lorem ipsom etc ";
 		}
-		LogFile.Lines.push_back(TestLine);
+		LogFile.FileContent += TestLine;
 		for (char a = '0'; a <= 'z'; ++a)
-			LogFile.Lines.push_back(std::string(&a, 1));
+			LogFile.FileContent += a;
 		OpenFiles.push_back(std::move(LogFile));
 	}
 
@@ -170,17 +285,14 @@ bool RenderWindow()
 			{
 				ImGui::PushTextWrapPos();
 				
-				if (File.LineIncluded.size() != File.Lines.size())
-				{
-					RedoFilter(File);
-				}
-				for (int i = 0; i < File.Lines.size(); ++i)
-				{
-					if (File.LineIncluded[i])
-					{
-						ImGui::Text(File.Lines[i].c_str());
-					}
-				}
+				//for (int i = 0; i < File.Lines.size(); ++i)
+				//{
+				//	if (File.LineIncluded[i])
+				//	{
+				//		ImGui::Text(File.Lines[i].c_str());
+				//	}
+				//}
+				ImGui::TextUnformatted(File.GetDisplayStr().c_str());
 				ImGui::PopTextWrapPos();
 			}
 
@@ -193,40 +305,42 @@ bool RenderWindow()
 					File.Filters.emplace_back(FLineFilter());
 				}
 
-				bool bFiltersChanged = false;
+				bool bFiltersDirty = false;
 				for (int LineFilterIdx = 0; LineFilterIdx < File.Filters.size(); ++LineFilterIdx)
 				{
 					FLineFilter& LineFilter = File.Filters[LineFilterIdx];
 					ImGui::Spacing(); ImGui::Spacing(); ImGui::Spacing();
 					ImGui::PushID(LineFilterIdx);
 
-					if (ImGui::Combo("Type", (int*)&LineFilter.Type, EFilterTypeStrings, int(EFilterType::MAX))) bFiltersChanged = true;
-					static char Buf[1024];
-					strncpy_s(Buf, LineFilter.Token.c_str(), LineFilter.Token.size());
-					if (ImGui::InputText("Token", Buf, 1024))
+					bool bFilterDirty = false;
+					bFilterDirty |= ImGui::Combo("Type", (int*)&LineFilter.Type, EFilterTypeStrings, int(EFilterType::MAX));
+					if (LineFilter.Type == EFilterType::TextInclude || LineFilter.Type == EFilterType::TextExclude)
 					{
-						LineFilter.Token = Buf;
-						bFiltersChanged = true;
+						auto& FilterData = LineFilter.TextData;
+						bFilterDirty |= ImGuiInputText("Token", FilterData.Token);
+						bFilterDirty |= ImGui::Checkbox("Case Sensitive", &FilterData.bCaseMatch);
+						//ImGui::SameLine();
+						//bFilterDirty |= ImGui::Checkbox("Regex", &LineFilter.bRegex);
+					}
+					else if (LineFilter.Type == EFilterType::LogCategory)
+					{
+						auto& FilterData = LineFilter.LogCategoryData;
+						bFilterDirty |= ImGuiInputText("Category", FilterData.Category);
+						bFilterDirty |= ImGui::Combo("Verbosity", (int*)&FilterData.Verbosity, ELogVerbosityStrings, int(ELogVerbosity::MAX));
 					}
 
-					if (ImGui::Checkbox("Enable", &LineFilter.bEnable)) bFiltersChanged = true;
+					bool bEnableChanged = ImGui::Checkbox("Enable", &LineFilter.bEnable);
 					ImGui::SameLine();
-					if (ImGui::Checkbox("Case Sensitive", &LineFilter.bCaseMatch)) bFiltersChanged = true;
-					//ImGui::SameLine();
-					//if(ImGui::Checkbox("Regex", &LineFilter.bRegex)) bFiltersChanged = true;
-
 					if (ImGui::Button("Remove Filter"))
 					{
 						File.Filters.erase(File.Filters.begin() + LineFilterIdx);
-						bFiltersChanged = true;
+						bFilterDirty = true;
+						--LineFilterIdx;
 					}
 
-					ImGui::PopID();
-				}
+					File.bDisplayStrDirty = bEnableChanged || (LineFilter.bEnable && bFilterDirty);
 
-				if (bFiltersChanged)
-				{
-					RedoFilter(File);
+					ImGui::PopID();
 				}
 			}
 		}
@@ -238,5 +352,8 @@ bool RenderWindow()
 
 void OpenAdditionalFile(const std::string& FilePath)
 {
-	OpenFiles.push_back({ FilePath, FileUtils::ReadFileContents(FilePath) });
+	FLogFile LogFile;
+	LogFile.FilePath = FilePath;
+	LogFile.FileContent = FileUtils::ReadFileContents(FilePath);
+	OpenFiles.push_back(std::move(LogFile));
 }

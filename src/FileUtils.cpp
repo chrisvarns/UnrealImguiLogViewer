@@ -3,19 +3,16 @@
 #include <windows.h>
 #include <fileapi.h>
 
-#include <sstream>
-
 namespace FileUtils
 {
 
-std::vector<std::string> ReadFileContents(const std::string& FilePath)
+std::string ReadFileContents(const std::string& FilePath)
 {
-	std::vector<std::string> FileContents;
-
+	std::stringstream FileStream;
 	HANDLE FileHandle = CreateFile(
 		FilePath.c_str(),
 		GENERIC_READ,
-		0,
+		FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE,
 		NULL,
 		OPEN_EXISTING,
 		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_SEQUENTIAL_SCAN,
@@ -27,7 +24,6 @@ std::vector<std::string> ReadFileContents(const std::string& FilePath)
 		DWORD BytesRead;
 		bool bReadSuccess = true;
 
-		std::stringstream FileStream;
 		while (bReadSuccess)
 		{
 			bReadSuccess = ReadFile(
@@ -44,14 +40,8 @@ std::vector<std::string> ReadFileContents(const std::string& FilePath)
 			}
 		}
 		CloseHandle(FileHandle);
-
-		std::string Line;
-		while (std::getline(FileStream, Line))
-		{
-			FileContents.emplace_back(std::move(Line));
-		}
 	}
-	return FileContents;
+	return FileStream.str();
 }
 
 }

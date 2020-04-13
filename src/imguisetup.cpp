@@ -28,7 +28,7 @@ void CleanupRenderTarget();
 LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
 // Main code
-int main(int, char**)
+int main(int argc, char** argv)
 {
 	// load the Live++ DLL, check for version mismatch, and register process group
 	HMODULE livePP = lpp::lppLoadAndRegister(L"..\\..\\thirdparty\\livepp", "Quickstart");
@@ -42,7 +42,7 @@ int main(int, char**)
 	// Create application window
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
 	::RegisterClassEx(&wc);
-	HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Dear ImGui DirectX10 Example"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
+	HWND hwnd = ::CreateWindow(wc.lpszClassName, _T("Unreal Log Viewer"), WS_OVERLAPPEDWINDOW, 100, 100, 1280, 800, NULL, NULL, wc.hInstance, NULL);
 
 	FDropTarget DropTarget;
 	OleInitialize(NULL);
@@ -90,6 +90,11 @@ int main(int, char**)
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
 	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 	//IM_ASSERT(font != NULL);
+
+	for (int i = 1; i < argc; ++i)
+	{
+		OpenAdditionalFile(argv[i]);
+	}
 
 	// Main loop
 	MSG msg;
