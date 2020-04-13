@@ -207,7 +207,7 @@ static std::vector<FLogFile> OpenFiles;
 static ImVec4 TextColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
 static bool bWordWrap = true;
 
-bool ImGuiInputText(const char* Label, std::string& InOutText)
+bool InputTextBox(const char* Label, std::string& InOutText)
 {
 	static char Buf[1024];
 	strncpy_s(Buf, InOutText.c_str(), InOutText.size());
@@ -360,7 +360,7 @@ bool RenderWindow()
 					if (LineFilter.Type == EFilterType::TextInclude || LineFilter.Type == EFilterType::TextExclude)
 					{
 						auto& FilterData = LineFilter.TextData;
-						bFilterDirty |= ImGuiInputText("Token", FilterData.Token);
+						bFilterDirty |= InputTextBox("Token", FilterData.Token);
 						bFilterDirty |= ImGui::Checkbox("Case Sensitive", &FilterData.bCaseMatch);
 						//ImGui::SameLine();
 						//bFilterDirty |= ImGui::Checkbox("Regex", &LineFilter.bRegex);
@@ -368,7 +368,7 @@ bool RenderWindow()
 					else if (LineFilter.Type == EFilterType::LogCategory)
 					{
 						auto& FilterData = LineFilter.LogCategoryData;
-						bFilterDirty |= ImGuiInputText("Category", FilterData.Category);
+						bFilterDirty |= InputTextBox("Category", FilterData.Category);
 						bFilterDirty |= ImGui::Combo("Verbosity", (int*)&FilterData.Verbosity, ELogVerbosityStrings, int(ELogVerbosity::MAX));
 					}
 
