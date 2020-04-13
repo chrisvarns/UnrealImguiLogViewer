@@ -30,20 +30,6 @@ struct FLineFilter
 	EFilterType Type = EFilterType::Include;
 	std::string Token;
 	bool bCaseMatch = false;
-
-	bool DoFilter(const std::string& Line)
-	{
-		auto SearchPredCaseInvariant = [](char ch1, char ch2) { return toupper(ch1) == toupper(ch2); };
-		bool bContains = bCaseMatch ?
-			std::search(Line.begin(), Line.end(), Token.begin(), Token.end()) != Line.end() :
-			std::search(Line.begin(), Line.end(), Token.begin(), Token.end(), SearchPredCaseInvariant) != Line.end();
-		
-		bool bShouldInclude =
-			Type == EFilterType::Include && bContains ||
-			Type == EFilterType::Exclude && !bContains;
-
-		return bShouldInclude;
-	}
 };
 
 struct FLogFile
@@ -55,6 +41,36 @@ public:
 };
 
 static std::vector<FLogFile> OpenFiles;
+
+/** Returns true if we should include the line */
+bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Line)
+{
+	auto SearchPredCaseInvariant = [](char ch1, char ch2) { return toupper(ch1) == toupper(ch2); };
+
+	bool bIncluded = false;
+	bool bExcluded = false;
+	bool bIncludeFilterEncountered = false;
+
+	for (const FLineFilter& Filter : Filters)
+	{
+		bool bContains = Filter.bCaseMatch ?
+			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end()) != Line.end() :
+			std::search(Line.begin(), Line.end(), Filter.Token.begin(), Filter.Token.end(), SearchPredCaseInvariant) != Line.end();
+
+		if (Filter.Type == EFilterType::Include)
+		{
+			bIncludeFilterEncountered = true;
+			bIncluded |= bContains;
+		}
+		else if (Filter.Type == EFilterType::Exclude)
+		{
+			bExcluded |= bContains;
+			break; // No need to continue if we're excluded
+		}
+	}
+
+	return !bExcluded && (bIncluded || !bIncludeFilterEncountered);
+}
 
 bool RenderWindow()
 {
@@ -133,16 +149,7 @@ bool RenderWindow()
 				ImGui::PushTextWrapPos();
 				for (std::string& Line : File.Lines)
 				{
-					bool bInclude = true;
-					for (FLineFilter& Filter : File.Filters)
-					{
-						if (!Filter.DoFilter(Line))
-						{
-							bInclude = false;
-							break;
-						}
-					}
-					if (bInclude)
+					if (DoFilterLine(File.Filters, Line))
 					{
 						ImGui::Text(Line.c_str());
 					}
@@ -158,7 +165,6 @@ bool RenderWindow()
 				{
 					File.Filters.emplace_back(FLineFilter());
 				}
-
 
 				for (int LineFilterIdx = 0; LineFilterIdx < File.Filters.size(); ++LineFilterIdx)
 				{
