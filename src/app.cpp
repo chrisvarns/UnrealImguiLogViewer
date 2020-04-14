@@ -313,7 +313,7 @@ bool RenderWindow()
 			}
 			if (ImGui::BeginMenu("Options"))
 			{
-				ImGui::ColorPicker3("Text Color", &TextColor.x, ImGuiColorEditFlags_None);
+				ImGui::ColorEdit3("Text Color", &TextColor.x, ImGuiColorEditFlags_None);
 				ImGui::Checkbox("Word Wrap", &bWordWrap);
 				ImGui::EndMenu();
 			}
