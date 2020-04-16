@@ -2,6 +2,8 @@
 
 #include <string>
 
+void AppStartup(int argc, char** argv);
+
 // Returns false if we should exit
 bool RenderWindow();
 

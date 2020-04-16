@@ -1,4 +1,4 @@
-#include "imgui/imgui.h"
+#include "imgui.h"
 #include "FileUtils.h"
 
 #include <algorithm>
@@ -6,6 +6,12 @@
 #include <sstream>
 #include <string>
 #include <vector>
+
+#ifdef _WIN32
+#define STRNCPY strncpy_s
+#else
+#define STRNCPY strncpy
+#endif
 
 enum class EFilterType : int
 {
@@ -210,7 +216,7 @@ static bool bWordWrap = true;
 bool InputTextBox(const char* Label, std::string& InOutText)
 {
 	static char Buf[1024];
-	strncpy_s(Buf, InOutText.c_str(), InOutText.size());
+	STRNCPY(Buf, InOutText.c_str(), InOutText.size());
 	if (ImGui::InputText(Label, Buf, 1024))
 	{
 		InOutText = Buf;
@@ -222,7 +228,7 @@ bool InputTextBox(const char* Label, std::string& InOutText)
 void RenderTextWindow(const FDisplayText& DisplayText)
 {
 	// Get width of the line number section
-	int NumLineNumChars = 0;
+	int NumLineNumChars = 1;
 	{
 		size_t NumLines = DisplayText[DisplayText.size()-1].LineNumber;
 		while (NumLines /= 10) ++NumLineNumChars;
@@ -400,4 +406,12 @@ void OpenAdditionalFile(const std::string& FilePath)
 	LogFile.FilePath = FilePath;
 	LogFile.FileContents = FileUtils::ReadFileContents(FilePath);
 	OpenFiles.push_back(std::move(LogFile));
+}
+
+void AppStartup(int argc, char** argv)
+{
+    for (int i = 1; i < argc; ++i)
+    {
+        OpenAdditionalFile(argv[i]);
+    }
 }

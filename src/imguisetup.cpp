@@ -92,11 +92,8 @@ int main(int argc, char** argv)
 	//io.Fonts->AddFontFromFileTTF("../../misc/fonts/ProggyTiny.ttf", 10.0f);
 	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 	//IM_ASSERT(font != NULL);
-
-	for (int i = 1; i < argc; ++i)
-	{
-		OpenAdditionalFile(argv[i]);
-	}
+    
+    AppStartup(argc, argv);
 
 	// Main loop
 	MSG msg;
