@@ -7,7 +7,14 @@
 #include <dinput.h>
 #include <tchar.h>
 
+#ifndef ULV_WITH_LIVEPP
+#define ULV_WITH_LIVEPP 0
+#endif
+
+#if ULV_WITH_LIVEPP
 #include "livepp/API/LPP_API.h"
+#endif
+
 #include "imgui/imgui.h"
 #include "imgui/imgui_impl_win32.h"
 #include "imgui/imgui_impl_dx10.h"
@@ -30,6 +37,7 @@ LRESULT WINAPI WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 // Main code
 int main(int argc, char** argv)
 {
+#if ULV_WITH_LIVEPP
 	// load the Live++ DLL, check for version mismatch, and register process group
 	HMODULE livePP = lpp::lppLoadAndRegister(L"..\\..\\thirdparty\\livepp", "Quickstart");
 
@@ -38,6 +46,7 @@ int main(int argc, char** argv)
 
 	// enable Live++'s exception handler/error recovery
 	lpp::lppInstallExceptionHandler(livePP);
+#endif
 
 	// Create application window
 	WNDCLASSEX wc = { sizeof(WNDCLASSEX), CS_CLASSDC, WndProc, 0L, 0L, GetModuleHandle(NULL), NULL, NULL, NULL, NULL, _T("ImGui Example"), NULL };
