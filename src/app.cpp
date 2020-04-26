@@ -28,16 +28,6 @@ const char* EFilterTypeStrings[(int)EFilterType::MAX + 1] =
 	"Log Category"
 };
 
-const char* ToString(EFilterType Type)
-{
-	int StringIndex = (int)Type;
-	if (StringIndex >= 0 || StringIndex < (int)EFilterType::MAX)
-	{
-		return EFilterTypeStrings[StringIndex];
-	}
-	return "Unknown";
-}
-
 enum class ELogVerbosity : int
 {
 	Off = 0,
@@ -58,16 +48,6 @@ const char* ELogVerbosityStrings[(int)ELogVerbosity::MAX + 1] =
 	"Verbose",
 	"VeryVerbose"
 };
-
-const char* ToString(ELogVerbosity Type)
-{
-	int StringIndex = (int)Type;
-	if (StringIndex >= 0 || StringIndex < (int)ELogVerbosity::MAX)
-	{
-		return ELogVerbosityStrings[StringIndex];
-	}
-	return "Unknown";
-}
 
 struct FLineFilter
 {
@@ -97,7 +77,7 @@ bool ContainsByPred(const std::string& Haystack, const std::string& Needle, TPre
 }
 
 /** Returns true if we should include the line */
-bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Line)
+bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string& Line)
 {
 	auto SearchPredCaseInvariant = [](char ch1, char ch2) { return toupper(ch1) == toupper(ch2); };
 
@@ -162,56 +142,87 @@ bool DoFilterLine(const std::vector<FLineFilter>& Filters, const std::string Lin
 	return !bExcluded && (bIncluded || !bIncludeFilterEncountered);
 }
 
-struct FDisplayLine
+enum class ELogLineType
 {
-	int LineNumber;
-	std::string Text;
+	Normal,
+	Warning,
+	Error
 };
 
-typedef std::vector<FDisplayLine> FDisplayText;
+struct FLogLineMetadata
+{
+	FLogLineMetadata(const std::string& InText);
+	bool bContainsTimestamp = false;
+	ELogLineType LineType = ELogLineType::Normal;
+
+	static const int TimestampStartIdx = 0;
+	static const int TimestampEndIdx = TimestampStartIdx + 24;
+	static const int FrameStartIdx = TimestampEndIdx + 1;
+	static const int FrameEndIdx = FrameStartIdx + 4;
+};
+
+FLogLineMetadata::FLogLineMetadata(const std::string& Text)
+{
+	if (Text[TimestampStartIdx] == '[' && Text[TimestampEndIdx] == ']' && Text[FrameStartIdx] == '[' && Text[FrameEndIdx] == ']') bContainsTimestamp = true;
+	if (Contains(Text, "Error")) LineType = ELogLineType::Error;
+	else if (Contains(Text, "Warning")) LineType = ELogLineType::Warning;
+}
+
+typedef std::vector<int> FDisplayLines;
 
 struct FLogFile
 {
 public:
+	FLogFile(const std::string& FilePath, std::vector<std::string>&& InLines);
 	std::string FilePath;
-	std::vector<std::string> FileContents;
+	std::vector<std::string> Lines;
+	std::vector<FLogLineMetadata> LineMetadatas;
 	std::vector<FLineFilter> Filters;
-	bool bDisplayTextDirty = true;
-	int NumFileContentLines = -1;
+	mutable bool bDisplayTextDirty = true;
 
-	const FDisplayText& GetDisplayText()
+	const FDisplayLines& GetDisplayLines() const
 	{
 		if (bDisplayTextDirty)
 		{
-			DisplayText.clear();
-			DisplayText.reserve(NumFileContentLines > 0 ? NumFileContentLines : 16384);
+			DisplayLines.clear();
+			DisplayLines.reserve(Lines.size());
 
 			std::string Line;
-			int LineNumber = 1;
-			for (const std::string& Line : FileContents)
+			for (int LineIdx = 0; LineIdx < Lines.size(); ++LineIdx)
 			{
+				const std::string& Line = Lines[LineIdx];
 				if (DoFilterLine(Filters, Line))
 				{
-					FDisplayLine DisplayLine;
-					DisplayLine.LineNumber = LineNumber;
-					DisplayLine.Text = std::string(Line.c_str(), Line.size());
-					DisplayText.emplace_back(std::move(DisplayLine));
+					DisplayLines.emplace_back(LineIdx);
 				}
-				++LineNumber;
 			}
-			NumFileContentLines = LineNumber + 1;
 			bDisplayTextDirty = false;
 		}
-		return DisplayText;
+		return DisplayLines;
 	}
 
 private:
-	FDisplayText DisplayText;
+	mutable FDisplayLines DisplayLines;
 };
+
+FLogFile::FLogFile(const std::string& FilePath, std::vector<std::string>&& InLines)
+	: FilePath(FilePath)
+	, Lines(std::move(InLines))
+{
+	LineMetadatas.reserve(Lines.size());
+	for(int LineIdx = 0; LineIdx < Lines.size(); ++LineIdx)
+	{
+		const std::string& Line = Lines[LineIdx];
+		LineMetadatas.emplace_back(FLogLineMetadata(Line));
+	}
+}
 
 static std::vector<FLogFile> OpenFiles;
 static ImVec4 TextColor = ImVec4(1.0f, 1.0f, 1.0f, 1.0f);
+static ImVec4 TextColor_Warning = ImVec4(1.0f, 1.0f, 0.0f, 1.0f);
+static ImVec4 TextColor_Error = ImVec4(1.0f, 0.0f, 0.0f, 1.0f);
 static bool bWordWrap = true;
+static bool bDisplayTimestamps = true;
 
 bool InputTextBox(const char* Label, std::string& InOutText)
 {
@@ -225,38 +236,58 @@ bool InputTextBox(const char* Label, std::string& InOutText)
 	return false;
 }
 
-void RenderTextWindow(const FDisplayText& DisplayText)
+void RenderTextWindow(const FLogFile& LogFile)
 {
+	const FDisplayLines& DisplayLines = LogFile.GetDisplayLines();
 	// Get width of the line number section
 	int NumLineNumChars = 1;
 	{
-		size_t NumLines = DisplayText[DisplayText.size()-1].LineNumber;
-		while (NumLines /= 10) ++NumLineNumChars;
+		size_t BiggestLine = DisplayLines[DisplayLines.size()-1];
+		while (BiggestLine /= 10) ++NumLineNumChars;
 	}
 
 	if (bWordWrap)
 	{
 		ImGui::PushTextWrapPos(ImGui::GetWindowContentRegionWidth());
 	}
-	ImGui::PushStyleColor(ImGuiCol_Text, TextColor);
-	ImGuiListClipper Clipper((int)DisplayText.size());
+	ImGuiListClipper Clipper((int)DisplayLines.size());
 	while (Clipper.Step())
 	{
-		for (int i = Clipper.DisplayStart; i < Clipper.DisplayEnd; ++i)
+		for (int ClipperIdx = Clipper.DisplayStart; ClipperIdx < Clipper.DisplayEnd; ++ClipperIdx)
 		{
-			ImGui::Text("%d", DisplayText[i].LineNumber);
-			ImGui::SameLine(NumLineNumChars * ImGui::GetFontSize());
-			ImGui::TextUnformatted(DisplayText[i].Text.c_str());
-			ImGui::PushID(i);
-			if (ImGui::BeginPopupContextItem("DisplayText context menu"))
+			int LineNumber = DisplayLines[ClipperIdx];
+			const std::string& LogLine = LogFile.Lines[LineNumber];
+			const FLogLineMetadata& LogLineMetadata = LogFile.LineMetadatas[LineNumber];
+
+			ImVec4 TextStyleColor;
+			switch (LogLineMetadata.LineType)
 			{
-				if (ImGui::Selectable("Copy")) ImGui::SetClipboardText(DisplayText[i].Text.c_str());
-				ImGui::EndPopup();
+			case ELogLineType::Warning: TextStyleColor = TextColor_Warning; break;
+			case ELogLineType::Error: TextStyleColor = TextColor_Error; break;
+			default: TextStyleColor = TextColor; break;
 			}
-			ImGui::PopID();
+			ImGui::PushStyleColor(ImGuiCol_Text, TextStyleColor);
+			ImGui::Text("%d", LineNumber + 1);
+			ImGui::SameLine(NumLineNumChars * ImGui::GetFontSize());
+
+			const char* TextPtr = LogLine.c_str();
+			TextPtr += !bDisplayTimestamps && LogLineMetadata.bContainsTimestamp ? FLogLineMetadata::FrameEndIdx+1 : 0;
+			ImGui::TextUnformatted(TextPtr);
+
+			ImGui::PopStyleColor();
+
+			// Content menu
+			{
+				ImGui::PushID(ClipperIdx);
+				if (ImGui::BeginPopupContextItem("DisplayText context menu"))
+				{
+					if (ImGui::Selectable("Copy")) ImGui::SetClipboardText(LogLine.c_str());
+					ImGui::EndPopup();
+				}
+				ImGui::PopID();
+			}
 		}
 	}
-	ImGui::PopStyleColor();
 	if (bWordWrap)
 	{
 		ImGui::PopTextWrapPos();
@@ -268,22 +299,23 @@ namespace App
 
 bool RenderWindow()
 {
+	// Create test file
 	if (OpenFiles.size() == 0)
 	{
-		FLogFile LogFile;
-		LogFile.FilePath = "test";
+		std::vector<std::string> Lines;
 		std::string TestLine;
 		for (int i = 0; i < 100; ++i)
 		{
 			TestLine += "Lorem ipsom etc ";
 		}
-		LogFile.FileContents.emplace_back(std::move(TestLine));
+		Lines.emplace_back(std::move(TestLine));
 		for (char a = '0'; a <= 'z'; ++a)
-			LogFile.FileContents.emplace_back(&a);
-		OpenFiles.push_back(std::move(LogFile));
+			Lines.emplace_back(&a);
+
+		OpenFiles.emplace_back(FLogFile("test", std::move(Lines)));
 	}
 
-	bool bExitApp = true;
+	bool bAppContinue = true;
 	ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 
 	// Fullscreen Dock
@@ -316,14 +348,17 @@ bool RenderWindow()
 				}
 				if (ImGui::MenuItem("Exit"))
 				{
-					bExitApp = false;
+					bAppContinue = false;
 				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Options"))
 			{
 				ImGui::ColorEdit3("Text Color", &TextColor.x, ImGuiColorEditFlags_None);
+				ImGui::ColorEdit3("Text Color (Warning)", &TextColor_Warning.x, ImGuiColorEditFlags_None);
+				ImGui::ColorEdit3("Text Color (Error)", &TextColor_Error.x, ImGuiColorEditFlags_None);
 				ImGui::Checkbox("Word Wrap", &bWordWrap);
+				ImGui::Checkbox("Display Timestamps", &bDisplayTimestamps);
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -344,7 +379,7 @@ bool RenderWindow()
 		{
 			if (ImGui::BeginChild("TextRegion", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.85f, 0), false, ImGuiWindowFlags_HorizontalScrollbar))
 			{
-				RenderTextWindow(File.GetDisplayText());
+				RenderTextWindow(File);
 			}
 			ImGui::EndChild();
 
@@ -400,15 +435,12 @@ bool RenderWindow()
 		ImGui::End();
 	}
 
-	return bExitApp;
+	return bAppContinue;
 }
 
 void OpenAdditionalFile(const std::string& FilePath)
 {
-	FLogFile LogFile;
-	LogFile.FilePath = FilePath;
-	LogFile.FileContents = FileUtils::ReadFileContents(FilePath);
-	OpenFiles.push_back(std::move(LogFile));
+	OpenFiles.emplace_back(FLogFile(FilePath, FileUtils::ReadFileContents(FilePath)));
 }
 
 void Startup(int argc, char** argv)
