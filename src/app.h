@@ -5,7 +5,7 @@
 namespace App
 {
 
-	void AppStartup(int argc, char** argv);
+	void Startup(int argc, char** argv);
 
 	// Returns false if we should exit
 	bool RenderWindow();

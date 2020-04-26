@@ -71,7 +71,7 @@ HRESULT FDropTarget::Drop(IDataObject *pDataObj, DWORD grfKeyState, POINTL pt, D
 			UINT cch = DragQueryFile(hdrop, i, szFile, MAX_PATH);
 			if (cch > 0 && cch < MAX_PATH)
 			{
-				OpenAdditionalFile(szFile);
+				App::OpenAdditionalFile(szFile);
 			}
 		}
 		ReleaseStgMedium(&stgm);

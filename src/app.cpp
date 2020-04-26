@@ -263,7 +263,10 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 	}
 }
 
-bool App::RenderWindow()
+namespace App
+{
+
+bool RenderWindow()
 {
 	if (OpenFiles.size() == 0)
 	{
@@ -339,7 +342,7 @@ bool App::RenderWindow()
 
 		if (ImGui::Begin(File.FilePath.c_str(), nullptr, ImGuiWindowFlags_None))
 		{
-			if(ImGui::BeginChild("TextRegion", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.85f, 0), false, ImGuiWindowFlags_HorizontalScrollbar))
+			if (ImGui::BeginChild("TextRegion", ImVec2(ImGui::GetWindowContentRegionWidth() * 0.85f, 0), false, ImGuiWindowFlags_HorizontalScrollbar))
 			{
 				RenderTextWindow(File.GetDisplayText());
 			}
@@ -347,7 +350,7 @@ bool App::RenderWindow()
 
 			ImGui::SameLine();
 
-			if(ImGui::BeginChild("ConfigRegion"))
+			if (ImGui::BeginChild("ConfigRegion"))
 			{
 				if (ImGui::Button("Add Filter"))
 				{
@@ -400,7 +403,7 @@ bool App::RenderWindow()
 	return bExitApp;
 }
 
-void App::OpenAdditionalFile(const std::string& FilePath)
+void OpenAdditionalFile(const std::string& FilePath)
 {
 	FLogFile LogFile;
 	LogFile.FilePath = FilePath;
@@ -408,10 +411,12 @@ void App::OpenAdditionalFile(const std::string& FilePath)
 	OpenFiles.push_back(std::move(LogFile));
 }
 
-void App::AppStartup(int argc, char** argv)
+void Startup(int argc, char** argv)
 {
-    for (int i = 1; i < argc; ++i)
-    {
-        OpenAdditionalFile(argv[i]);
-    }
+	for (int i = 1; i < argc; ++i)
+	{
+		OpenAdditionalFile(argv[i]);
+	}
 }
+
+} // namespace App

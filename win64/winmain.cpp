@@ -102,7 +102,7 @@ int main(int argc, char** argv)
 	//ImFont* font = io.Fonts->AddFontFromFileTTF("c:\\Windows\\Fonts\\ArialUni.ttf", 18.0f, NULL, io.Fonts->GetGlyphRangesJapanese());
 	//IM_ASSERT(font != NULL);
     
-    AppStartup(argc, argv);
+    App::Startup(argc, argv);
 
 	// Main loop
 	MSG msg;
@@ -127,7 +127,7 @@ int main(int argc, char** argv)
 		ImGui_ImplWin32_NewFrame();
 		ImGui::NewFrame();
 
-		app_continue = RenderWindow();
+		app_continue = App::RenderWindow();
 
 		// Rendering
 		ImGui::Render();
