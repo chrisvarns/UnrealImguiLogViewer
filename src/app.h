@@ -2,9 +2,14 @@
 
 #include <string>
 
-void AppStartup(int argc, char** argv);
+namespace App
+{
 
-// Returns false if we should exit
-bool RenderWindow();
+	void AppStartup(int argc, char** argv);
 
-void OpenAdditionalFile(const std::string& FilePath);
+	// Returns false if we should exit
+	bool RenderWindow();
+
+	void OpenAdditionalFile(const std::string& FilePath);
+
+}

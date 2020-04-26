@@ -263,7 +263,7 @@ void RenderTextWindow(const FDisplayText& DisplayText)
 	}
 }
 
-bool RenderWindow()
+bool App::RenderWindow()
 {
 	if (OpenFiles.size() == 0)
 	{
@@ -400,7 +400,7 @@ bool RenderWindow()
 	return bExitApp;
 }
 
-void OpenAdditionalFile(const std::string& FilePath)
+void App::OpenAdditionalFile(const std::string& FilePath)
 {
 	FLogFile LogFile;
 	LogFile.FilePath = FilePath;
@@ -408,7 +408,7 @@ void OpenAdditionalFile(const std::string& FilePath)
 	OpenFiles.push_back(std::move(LogFile));
 }
 
-void AppStartup(int argc, char** argv)
+void App::AppStartup(int argc, char** argv)
 {
     for (int i = 1; i < argc; ++i)
     {
