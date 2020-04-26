@@ -65,6 +65,16 @@ struct FLineFilter
 	bool bEnable = false;
 };
 
+int FindPos(const std::string& A, int AStartPos, const std::string& B)
+{
+	return A.find(B, AStartPos);
+}
+
+bool StartsWith(const std::string& A, int AStartPos, const std::string& B)
+{
+	return A.compare(AStartPos, B.size(), B) == 0;
+}
+
 bool Contains(const std::string& Haystack, const std::string& Needle)
 {
 	return std::search(Haystack.begin(), Haystack.end(), Needle.begin(), Needle.end()) != Haystack.end();
@@ -164,8 +174,18 @@ struct FLogLineMetadata
 FLogLineMetadata::FLogLineMetadata(const std::string& Text)
 {
 	if (Text[TimestampStartIdx] == '[' && Text[TimestampEndIdx] == ']' && Text[FrameStartIdx] == '[' && Text[FrameEndIdx] == ']') bContainsTimestamp = true;
-	if (Contains(Text, "Error")) LineType = ELogLineType::Error;
-	else if (Contains(Text, "Warning")) LineType = ELogLineType::Warning;
+	
+	const int PostTimestampPos = bContainsTimestamp ? FrameEndIdx + 1 : 0;
+	if (StartsWith(Text, PostTimestampPos, "Log"))
+	{
+		const int PosOfColon = FindPos(Text, PostTimestampPos, ": ");
+		if (PosOfColon > 0)
+		{
+			const int PosOfLogLevel = PosOfColon + 2;
+			if (StartsWith(Text, PosOfLogLevel, "Warning: ")) LineType = ELogLineType::Warning;
+			else if (StartsWith(Text, PosOfLogLevel, "Error: ")) LineType = ELogLineType::Error;
+		}
+	}
 }
 
 typedef std::vector<int> FDisplayLines;
